@@ -1,3 +1,0 @@
-# Build-time tooling only; these libraries are never copied into EZSnapshot.app.
-ds_store==1.3.3
-mac_alias==2.2.3
