@@ -1,3 +1,4 @@
 /* EZSnapshot native macOS permission text. */
 "CFBundleDisplayName" = "EZSnapshot";
+"NSHumanReadableCopyright" = "© 2026 ultRareku. All rights reserved.";
 "NSScreenCaptureUsageDescription" = "EZSnapshot needs screen access to take screenshots or record a selected region, window, or full screen with optional system audio. Images and videos are saved locally on your Mac.";

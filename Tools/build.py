@@ -4,10 +4,12 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import plistlib
 
 ROOT = Path(__file__).resolve().parent.parent
 BUILD = ROOT / "build"
 APP = BUILD / "EZSnapshot.app"
+VERSION = plistlib.loads((ROOT / "Resources/Info.plist").read_bytes())["CFBundleShortVersionString"]
 TOOLS = Path(os.environ.get("EZSNAPSHOT_TOOLCHAIN", "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin"))
 SDK = Path(os.environ.get("EZSNAPSHOT_SDK", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"))
 if not (TOOLS / "swiftc").exists() or not SDK.exists():
@@ -38,5 +40,5 @@ for resource in (ROOT / "Resources").glob("*.lproj"):
 run(["/usr/bin/codesign", "--force", "--sign", "-", "--timestamp=none", APP])
 run(["/usr/bin/codesign", "--verify", "--strict", APP])
 run(["/usr/bin/ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", APP,
-     BUILD / "EZSnapshot-Apple-Silicon.zip"])
+     BUILD / f"EZSnapshot-{VERSION}-Apple-Silicon.zip"])
 print(f"Built {APP}", flush=True)

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var state: AppState
+    @Environment(\.openWindow) private var openWindow
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 25) {
@@ -107,10 +108,10 @@ struct SettingsView: View {
                     AppMark(size: 30)
                     VStack(alignment: .leading, spacing: 3) {
                         Text("EZSnapshot").font(.system(size: 12, weight: .semibold))
-                        Text("\(state.text(.version)) 1.1 · Apple Silicon").font(.system(size: 10)).foregroundStyle(Palette.secondary)
+                        Text("\(state.text(.version)) \(AppMetadata.version) · Apple Silicon").font(.system(size: 10)).foregroundStyle(Palette.secondary)
                     }
                     Spacer()
-                    Text(state.text(.madeForMac)).font(.system(size: 10)).foregroundStyle(Palette.secondary)
+                    Button(state.text(.about)) { openWindow(id: "about") }.buttonStyle(QuietButtonStyle())
                 }.padding(.horizontal, 4).padding(.bottom, 10)
             }.padding(.horizontal, 34).padding(.top, 48).padding(.bottom, 24)
         }.scrollIndicators(.hidden)

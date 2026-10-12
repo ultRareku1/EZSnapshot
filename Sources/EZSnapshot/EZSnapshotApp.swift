@@ -19,6 +19,9 @@ struct EZSnapshotApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
         .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button(state.text(.menuAbout)) { showAbout() }
+            }
             CommandGroup(replacing: .newItem) {
                 Button(state.text(.menuOpenMainWindow)) { showMain() }.keyboardShortcut("0", modifiers: .command)
             }
@@ -37,6 +40,14 @@ struct EZSnapshotApp: App {
                     .disabled(state.recordingPhase == .preparing || state.recordingPhase == .selecting || state.recordingPhase == .finishing)
             }
         }
+        Window(state.text(.menuAbout), id: "about") {
+            AboutView()
+                .environmentObject(state)
+                .environment(\.locale, Locale(identifier: state.language.localeIdentifier))
+                .preferredColorScheme(state.appearance.colorScheme)
+        }
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentSize)
         MenuBarExtra {
             Text("EZSnapshot").font(.headline)
             if state.recordingPhase == .recording {
@@ -58,6 +69,7 @@ struct EZSnapshotApp: App {
             Divider()
             Button(state.text(.menuOpenMainWindow)) { showMain() }
             Button(state.text(.menuOpenSettings)) { state.section = .settings; showMain() }
+            Button(state.text(.menuAbout)) { showAbout() }
             Divider()
             Button(state.text(.menuQuit)) { NSApp.terminate(nil) }
         } label: {
@@ -75,6 +87,10 @@ struct EZSnapshotApp: App {
     }
     private func showMain() {
         openWindow(id: "main")
+        NSApp.activate(ignoringOtherApps: true)
+    }
+    private func showAbout() {
+        openWindow(id: "about")
         NSApp.activate(ignoringOtherApps: true)
     }
 }

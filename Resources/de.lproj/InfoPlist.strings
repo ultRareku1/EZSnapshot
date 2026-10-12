@@ -1,3 +1,4 @@
 /* EZSnapshot native macOS permission text. */
 "CFBundleDisplayName" = "EZSnapshot";
+"NSHumanReadableCopyright" = "© 2026 ultRareku. Alle Rechte vorbehalten.";
 "NSScreenCaptureUsageDescription" = "EZSnapshot benötigt Bildschirmzugriff für Screenshots oder Videos eines ausgewählten Bereichs, Fensters oder Bildschirms, auf Wunsch mit Systemaudio. Bilder und Videos werden lokal auf deinem Mac gesichert.";

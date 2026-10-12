@@ -1,6 +1,13 @@
 import AppKit
 import SwiftUI
 
+enum AppMetadata {
+    static var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0" }
+    static var build: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1" }
+    static let author = "ultRareku"
+    static let copyright = "© 2026 ultRareku"
+}
+
 enum CaptureMode: String, CaseIterable, Identifiable {
     case region, window, fullScreen
     var id: String { rawValue }

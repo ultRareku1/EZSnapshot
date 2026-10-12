@@ -83,7 +83,7 @@ struct MainView: View {
                 HStack {
                     Text("EZSnapshot").font(.system(size: 10, weight: .medium))
                     Spacer()
-                    Text("1.1").font(.system(size: 10, design: .monospaced))
+                    Text(AppMetadata.version).font(.system(size: 10, design: .monospaced))
                 }.foregroundStyle(Palette.secondary.opacity(0.8)).padding(.horizontal, 12)
             }.padding(.horizontal, 13).padding(.bottom, 23)
         }.background(Palette.sidebar)

@@ -90,6 +90,12 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
 
     private static let translations: [AppLanguage: [L10nKey: String]] = [
         .enUS: [
+            .author: "Author",
+            .initialRelease: "Initial release",
+            .copyright: "Copyright",
+            .allRightsReserved: "All rights reserved.",
+            .aboutDescription: "Native screenshots and screen recording for your Mac.",
+            .menuAbout: "About EZSnapshot",
             .record: "Record",
             .recording: "Recording",
             .newRecording: "New recording",
@@ -282,6 +288,12 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
             .fileMissingMessage: "The file may have been moved or deleted. Try another screenshot.",
         ],
         .zhCN: [
+            .author: "作者",
+            .initialRelease: "首次发布",
+            .copyright: "版权",
+            .allRightsReserved: "保留所有权利。",
+            .aboutDescription: "通过 Mac 原生功能截图和录制屏幕。",
+            .menuAbout: "关于 EZSnapshot",
             .record: "录屏",
             .recording: "正在录屏",
             .newRecording: "新录屏",
@@ -474,6 +486,12 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
             .fileMissingMessage: "文件可能已被移动或删除，请选择其他截图。",
         ],
         .zhTW: [
+            .author: "作者",
+            .initialRelease: "首次發行",
+            .copyright: "著作權",
+            .allRightsReserved: "保留所有權利。",
+            .aboutDescription: "透過 Mac 原生功能擷取截圖與錄製螢幕。",
+            .menuAbout: "關於 EZSnapshot",
             .record: "錄影",
             .recording: "正在錄影",
             .newRecording: "新增錄影",
@@ -666,6 +684,12 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
             .fileMissingMessage: "檔案可能已被移動或刪除，請選取其他截圖。",
         ],
         .jaJP: [
+            .author: "作者",
+            .initialRelease: "初回リリース",
+            .copyright: "著作権",
+            .allRightsReserved: "すべての権利を留保します。",
+            .aboutDescription: "Mac標準の機能でスクリーンショットを撮影し、画面を収録できます。",
+            .menuAbout: "EZSnapshotについて",
             .record: "画面収録",
             .recording: "収録中",
             .newRecording: "新しい画面収録",
@@ -858,6 +882,12 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
             .fileMissingMessage: "ファイルが移動または削除された可能性があります。別の撮影を選んでください。",
         ],
         .koKR: [
+            .author: "제작자",
+            .initialRelease: "첫 출시",
+            .copyright: "저작권",
+            .allRightsReserved: "모든 권리는 저작권자에게 있습니다.",
+            .aboutDescription: "Mac 기본 기능으로 스크린샷을 캡처하고 화면을 녹화합니다.",
+            .menuAbout: "EZSnapshot 정보",
             .record: "화면 녹화",
             .recording: "녹화 중",
             .newRecording: "새 녹화",
@@ -1050,6 +1080,12 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
             .fileMissingMessage: "파일이 이동되거나 삭제됐을 수 있습니다. 다른 스크린샷을 선택하세요.",
         ],
         .frFR: [
+            .author: "Auteur",
+            .initialRelease: "Première version",
+            .copyright: "Droits d’auteur",
+            .allRightsReserved: "Tous droits réservés.",
+            .aboutDescription: "Captures d’écran et vidéos avec les fonctions natives de votre Mac.",
+            .menuAbout: "À propos d’EZSnapshot",
             .record: "Filmer",
             .recording: "Enregistrement",
             .newRecording: "Nouvel enregistrement",
@@ -1242,6 +1278,12 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
             .fileMissingMessage: "Le fichier a peut-être été déplacé ou supprimé. Choisissez une autre capture.",
         ],
         .deDE: [
+            .author: "Autor",
+            .initialRelease: "Erstveröffentlichung",
+            .copyright: "Urheberrecht",
+            .allRightsReserved: "Alle Rechte vorbehalten.",
+            .aboutDescription: "Screenshots und Bildschirmvideos mit den nativen Funktionen deines Mac.",
+            .menuAbout: "Über EZSnapshot",
             .record: "Video",
             .recording: "Videoaufnahme",
             .newRecording: "Neue Videoaufnahme",
@@ -1434,6 +1476,12 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
             .fileMissingMessage: "Die Datei wurde möglicherweise verschoben oder gelöscht. Wähle einen anderen Screenshot.",
         ],
         .esES: [
+            .author: "Autor",
+            .initialRelease: "Primera versión",
+            .copyright: "Derechos de autor",
+            .allRightsReserved: "Todos los derechos reservados.",
+            .aboutDescription: "Capturas y grabación de pantalla con las funciones nativas del Mac.",
+            .menuAbout: "Acerca de EZSnapshot",
             .record: "Grabar",
             .recording: "Grabación",
             .newRecording: "Nueva grabación",
@@ -1630,6 +1678,12 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
 
 /// Stable keys shared by the main window, menu bar, settings, and editor.
 enum L10nKey: String, CaseIterable, Sendable {
+    case author
+    case initialRelease
+    case copyright
+    case allRightsReserved
+    case aboutDescription
+    case menuAbout
     case record
     case recording
     case newRecording

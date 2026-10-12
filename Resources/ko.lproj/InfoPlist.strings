@@ -1,3 +1,4 @@
 /* EZSnapshot native macOS permission text. */
 "CFBundleDisplayName" = "EZSnapshot";
+"NSHumanReadableCopyright" = "© 2026 ultRareku. 모든 권리는 저작권자에게 있습니다.";
 "NSScreenCaptureUsageDescription" = "EZSnapshot은 선택한 영역, 윈도우 또는 전체 화면을 캡처하거나 녹화하기 위해 화면 접근 권한이 필요합니다. 시스템 오디오를 포함할 수 있으며 이미지와 동영상은 Mac에 저장됩니다.";
