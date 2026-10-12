@@ -1,0 +1,3 @@
+/* EZSnapshot native macOS permission text. */
+"CFBundleDisplayName" = "EZSnapshot";
+"NSScreenCaptureUsageDescription" = "EZSnapshotは、選択した範囲、ウインドウ、または画面全体の撮影や収録に画面へのアクセスを必要とします。システム音声も含められます。画像と動画はMacに保存されます。";

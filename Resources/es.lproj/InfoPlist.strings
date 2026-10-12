@@ -1,0 +1,3 @@
+/* EZSnapshot native macOS permission text. */
+"CFBundleDisplayName" = "EZSnapshot";
+"NSScreenCaptureUsageDescription" = "EZSnapshot necesita acceso a la pantalla para capturar o grabar un área seleccionada, una ventana o la pantalla completa, con audio del sistema si lo deseas. Las imágenes y los vídeos se guardan localmente en tu Mac.";
