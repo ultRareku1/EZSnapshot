@@ -19,6 +19,7 @@ struct MainView: View {
                 case .settings: SettingsView()
                 }
             }
+            .id(state.section)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Palette.background)
         }

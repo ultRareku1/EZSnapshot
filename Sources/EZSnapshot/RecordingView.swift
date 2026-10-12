@@ -4,7 +4,7 @@ struct RecordingView: View {
     @EnvironmentObject private var state: AppState
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 25) {
+            VStack(alignment: .leading, spacing: 20) {
                 HStack {
                     SectionHeading(title: state.text(.newRecording), subtitle: state.text(.recordingSubtitle))
                     Spacer()
@@ -16,13 +16,14 @@ struct RecordingView: View {
                 if state.recordingPhase == .recording || state.recordingPhase == .finishing {
                     activeRecording
                 } else {
+                    if !state.permissionGranted { permissionCard }
                     hero
                     HStack(spacing: 12) {
                         ForEach(CaptureMode.allCases) { mode in
                             modeCard(mode)
                         }
                     }.disabled(state.recordingPhase.isBusy)
-                    sourceControls
+                    if state.permissionGranted { sourceControls }
                     preferences
                     HStack(spacing: 16) {
                         Label("MP4 · H.264", systemImage: "film")
@@ -35,18 +36,6 @@ struct RecordingView: View {
                         }.buttonStyle(PrimaryButtonStyle()).disabled(!state.canStartRecording)
                     }
                 }
-                if !state.permissionGranted {
-                    HStack(spacing: 13) {
-                        Image(systemName: "lock.shield").font(.system(size: 20)).foregroundStyle(Palette.accent)
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(state.text(.permissionRequired)).font(.system(size: 12, weight: .semibold))
-                            Text(state.text(.permissionRecordingMessage)).font(.system(size: 10))
-                                .foregroundStyle(Palette.secondary)
-                        }
-                        Spacer()
-                        Button(state.text(.enableAccess)) { state.requestPermission() }.buttonStyle(QuietButtonStyle())
-                    }.padding(17).background(Palette.surface, in: RoundedRectangle(cornerRadius: 13))
-                }
             }.padding(.horizontal, 34).padding(.top, 48).padding(.bottom, 32)
         }
         .scrollIndicators(.hidden)
@@ -54,9 +43,22 @@ struct RecordingView: View {
         .onChange(of: state.permissionGranted) { _, granted in if granted { state.refreshRecordingSources() } }
     }
 
+    private var permissionCard: some View {
+        HStack(spacing: 13) {
+            Image(systemName: "lock.shield").font(.system(size: 20)).foregroundStyle(Palette.accent)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(state.text(.permissionRequired)).font(.system(size: 12, weight: .semibold))
+                Text(state.text(.permissionRecordingMessage)).font(.system(size: 10))
+                    .foregroundStyle(Palette.secondary)
+            }
+            Spacer()
+            Button(state.text(.enableAccess)) { state.requestPermission() }.buttonStyle(QuietButtonStyle())
+        }.padding(17).background(Palette.surface, in: RoundedRectangle(cornerRadius: 13))
+    }
+
     private var hero: some View {
         HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
                 Image(systemName: "record.circle").font(.system(size: 28, weight: .light)).foregroundStyle(Palette.accent)
                 Text(state.text(.recordingFullScreenHint))
                     .font(.system(size: 29, weight: .medium, design: .rounded)).tracking(-0.8)
@@ -64,8 +66,8 @@ struct RecordingView: View {
                 Text(state.text(.nativeEncodingHint)).font(.system(size: 11))
                     .lineSpacing(4).foregroundStyle(Palette.secondary).frame(maxWidth: 300, alignment: .leading)
             }.frame(maxWidth: .infinity, alignment: .leading)
-            CaptureIllustration(isVideo: true).frame(width: 280, height: 200).accessibilityHidden(true)
-        }.padding(.horizontal, 30).padding(.vertical, 20)
+            CaptureIllustration(isVideo: true).scaleEffect(0.82).frame(width: 250, height: 154).accessibilityHidden(true)
+        }.padding(.horizontal, 30).padding(.vertical, 18)
             .background(Palette.accentSoft.opacity(0.65), in: RoundedRectangle(cornerRadius: 22))
             .overlay(RoundedRectangle(cornerRadius: 22).stroke(Palette.border.opacity(0.75)))
     }
