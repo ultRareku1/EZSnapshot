@@ -18,6 +18,7 @@ sources = ROOT / "Sources/EZSnapshot"
 for name, dependencies in [
     ("LocalizationChecks", [sources / "Localization.swift"]),
     ("ImageChecks", [sources / "Models.swift", sources / "Localization.swift"]),
+    ("CaptureChecks", [sources / "Models.swift", sources / "Localization.swift", sources / "CaptureService.swift"]),
     ("MediaModelChecks", [sources / "Models.swift", sources / "Localization.swift", sources / "FileExport.swift"]),
     ("RecordingChecks", [sources / name for name in
                         ["Models.swift", "Localization.swift", "CaptureService.swift", "RecordingService.swift", "RecordingWriter.swift"]])
