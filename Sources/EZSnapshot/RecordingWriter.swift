@@ -5,6 +5,21 @@ import ScreenCaptureKit
 /// All AVAssetWriter state and sample access stays on one serial queue.
 /// Kept separate from the capture service so real encoding can be verified with synthetic samples.
 final class RecordingWriter: NSObject, @unchecked Sendable, SCStreamOutput, SCStreamDelegate {
+    // Encoder discovery/startWriting may wait on native media services or storage.
+    // Keep that work off the UI actor, including before the first sample arrives.
+    static let preparationQueue = DispatchQueue(label: "app.ezsnapshot.recording.prepare", qos: .userInitiated)
+
+    static func prepare(url: URL, width: Int, height: Int, fps: Int, captureAudio: Bool) async throws -> RecordingWriter {
+        try await withCheckedThrowingContinuation { continuation in
+            preparationQueue.async {
+                do {
+                    continuation.resume(returning: try RecordingWriter(url: url, width: width, height: height,
+                                                                        fps: fps, captureAudio: captureAudio))
+                } catch { continuation.resume(throwing: error) }
+            }
+        }
+    }
+
     let queue = DispatchQueue(label: "app.ezsnapshot.recording.writer", qos: .userInitiated)
     var onStreamFailure: ((Error) -> Void)?
     var onWriterFailure: ((Error) -> Void)?
@@ -131,7 +146,7 @@ final class RecordingWriter: NSObject, @unchecked Sendable, SCStreamOutput, SCSt
             fail(assetWriter.error ?? RecordingServiceError.failed("The video encoder stopped unexpectedly."))
             return
         }
-        if let sample = pendingVideo, videoInput.isReadyForMoreMediaData {
+        if let sample = pendingVideo {
             let sourceTime = CMSampleBufferGetPresentationTimeStamp(sample)
             guard sourceTime.isValid, sourceTime.isNumeric else { pendingVideo = nil; return }
             if firstSourceTime == nil {
@@ -139,6 +154,9 @@ final class RecordingWriter: NSObject, @unchecked Sendable, SCStreamOutput, SCSt
                 firstHostTime = CMClockGetTime(CMClockGetHostTimeClock())
                 assetWriter.startSession(atSourceTime: .zero)
             }
+            // Starting the session must precede the readiness check. A native encoder
+            // may remain not-ready until it has an active timeline.
+            guard videoInput.isReadyForMoreMediaData else { return }
             pendingVideo = nil
             let relativeTime = CMTimeSubtract(sourceTime, firstSourceTime!)
             if relativeTime >= .zero, !lastVideoTime.isValid || relativeTime > lastVideoTime {

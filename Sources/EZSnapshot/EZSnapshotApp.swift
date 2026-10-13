@@ -51,9 +51,7 @@ struct EZSnapshotApp: App {
         MenuBarExtra {
             Text("EZSnapshot").font(.headline)
             if state.recordingPhase == .recording {
-                TimelineView(.periodic(from: .now, by: 1)) { _ in
-                    Text("\(state.text(.recording)) · \(ScreenshotRecord.timeString(state.recordingElapsed))")
-                }
+                Text("\(state.text(.recording)) · \(state.recordingTime)")
                 Button(state.text(.stopRecording)) { state.stopRecording() }
                     .keyboardShortcut("4", modifiers: [.control, .option])
             } else if state.recordingPhase.isBusy {
@@ -74,11 +72,9 @@ struct EZSnapshotApp: App {
             Button(state.text(.menuQuit)) { NSApp.terminate(nil) }
         } label: {
             if state.recordingPhase == .recording {
-                TimelineView(.periodic(from: .now, by: 1)) { _ in
-                    HStack(spacing: 4) {
-                        Image(systemName: "record.circle.fill")
-                        Text(ScreenshotRecord.timeString(state.recordingElapsed)).monospacedDigit()
-                    }
+                HStack(spacing: 4) {
+                    Image(systemName: "record.circle.fill")
+                    Text(state.recordingTime).monospacedDigit()
                 }
             } else {
                 Image(systemName: state.recordingPhase == .finishing ? "hourglass" : "viewfinder")

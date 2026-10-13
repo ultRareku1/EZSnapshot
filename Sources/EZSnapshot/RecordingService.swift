@@ -36,7 +36,7 @@ enum RecordingTarget: Identifiable {
     }
 }
 
-struct RecordingResult {
+struct RecordingResult: Sendable {
     let url: URL
     let pixelWidth: Int
     let pixelHeight: Int
@@ -73,7 +73,7 @@ final class RecordingService: NSObject {
 
     private enum Phase { case idle, starting, recording, stopping }
     private var phase: Phase = .idle
-    private var stream: SCStream?
+    private var stream: RecordingStreamControl?
     private var writer: RecordingWriter?
     private var destination: URL?
     private var sessionID: UUID?
@@ -182,33 +182,32 @@ final class RecordingService: NSObject {
             configuration.channelCount = 2
             configuration.excludesCurrentProcessAudio = true
 
-            try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+            try await RecordingBackground.perform {
+                try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+            }
             let temporaryURL = destination.appendingPathComponent(".EZRecording-\(identifier.uuidString).mp4")
-            let writer = try RecordingWriter(url: temporaryURL, width: width, height: height,
-                                             fps: frameRate, captureAudio: captureAudio)
+            let writer = try await RecordingWriter.prepare(url: temporaryURL, width: width, height: height,
+                                                          fps: frameRate, captureAudio: captureAudio)
+            self.writer = writer
+            try Task.checkCancellation()
             writer.onStreamFailure = { [weak self] error in
                 Task { @MainActor in self?.receivedFailure(error, session: identifier, streamStopped: true) }
             }
             writer.onWriterFailure = { [weak self] error in
                 Task { @MainActor in self?.receivedFailure(error, session: identifier, streamStopped: false) }
             }
-            self.writer = writer
-            let stream = SCStream(filter: filter, configuration: configuration, delegate: writer)
+            let stream = try await RecordingStreamControl.prepare(filter: filter, configuration: configuration,
+                                                                  writer: writer, captureAudio: captureAudio)
             self.stream = stream
-            try stream.addStreamOutput(writer, type: .screen, sampleHandlerQueue: writer.queue)
-            if captureAudio { try stream.addStreamOutput(writer, type: .audio, sampleHandlerQueue: writer.queue) }
             captureStarted = true
-            try await stream.startCapture()
+            try await stream.start()
             try Task.checkCancellation()
             if let startupError { throw startupError }
             phase = .recording
         } catch {
             if let stream {
-                if captureStarted, !streamDidStop { try? await stream.stopCapture() }
-                if let writer {
-                    try? stream.removeStreamOutput(writer, type: .screen)
-                    try? stream.removeStreamOutput(writer, type: .audio)
-                }
+                if captureStarted, !streamDidStop { try? await stream.stop() }
+                await stream.detachOutputs()
             }
             if let writer { await writer.cancel() }
             reset(session: identifier)
@@ -228,13 +227,14 @@ final class RecordingService: NSObject {
             defer { reset(session: identifier) }
             if !alreadyStopped {
                 // Even when the stream is interrupted during stop, finish any good frames.
-                try? await stream.stopCapture()
+                try? await stream.stop()
             }
-            try? stream.removeStreamOutput(writer, type: .screen)
-            try? stream.removeStreamOutput(writer, type: .audio)
+            await stream.detachOutputs()
             do {
                 let written = try await writer.finish(stopHostTime: stopHostTime)
-                let url = try Self.publishVideo(at: written.url, in: destination)
+                let url = try await RecordingBackground.perform {
+                    try Self.publishVideo(at: written.url, in: destination)
+                }
                 return RecordingResult(url: url, pixelWidth: written.pixelWidth,
                                        pixelHeight: written.pixelHeight, duration: written.duration)
             } catch {
@@ -269,7 +269,7 @@ final class RecordingService: NSObject {
         phase = .idle
     }
 
-    private static func publishVideo(at temporaryURL: URL, in directory: URL) throws -> URL {
+    private nonisolated static func publishVideo(at temporaryURL: URL, in directory: URL) throws -> URL {
         let size = (try FileManager.default.attributesOfItem(atPath: temporaryURL.path)[.size] as? NSNumber)?.int64Value ?? 0
         guard size > 0 else { throw RecordingServiceError.noVideo }
         let formatter = DateFormatter()
@@ -290,5 +290,73 @@ final class RecordingService: NSObject {
             }
         }
         throw RecordingServiceError.failed("A unique recording filename could not be created.")
+    }
+}
+
+/// Synchronous capture-framework entry points can wait for media services even when
+/// their eventual completion callback is asynchronous. Enter them off the UI actor.
+private final class RecordingStreamControl: @unchecked Sendable {
+    private let stream: SCStream
+    private let writer: RecordingWriter
+    private let captureAudio: Bool
+
+    private struct Parameters: @unchecked Sendable {
+        let filter: SCContentFilter
+        let configuration: SCStreamConfiguration
+        let writer: RecordingWriter
+        let captureAudio: Bool
+    }
+
+    private init(parameters: Parameters) throws {
+        writer = parameters.writer
+        captureAudio = parameters.captureAudio
+        stream = SCStream(filter: parameters.filter, configuration: parameters.configuration, delegate: writer)
+        try stream.addStreamOutput(writer, type: .screen, sampleHandlerQueue: writer.queue)
+        do {
+            if captureAudio { try stream.addStreamOutput(writer, type: .audio, sampleHandlerQueue: writer.queue) }
+        } catch {
+            try? stream.removeStreamOutput(writer, type: .screen)
+            throw error
+        }
+    }
+
+    @MainActor static func prepare(filter: SCContentFilter, configuration: SCStreamConfiguration,
+                        writer: RecordingWriter, captureAudio: Bool) async throws -> RecordingStreamControl {
+        let parameters = Parameters(filter: filter, configuration: configuration, writer: writer, captureAudio: captureAudio)
+        return try await RecordingBackground.perform { try RecordingStreamControl(parameters: parameters) }
+    }
+
+    func start() async throws { try await captureOperation(starting: true) }
+    func stop() async throws { try await captureOperation(starting: false) }
+
+    private func captureOperation(starting: Bool) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let handler: @Sendable (Error?) -> Void = { error in
+                    if let error { continuation.resume(throwing: error) }
+                    else { continuation.resume() }
+                }
+                if starting { self.stream.startCapture(completionHandler: handler) }
+                else { self.stream.stopCapture(completionHandler: handler) }
+            }
+        }
+    }
+
+    func detachOutputs() async {
+        _ = try? await RecordingBackground.perform {
+            try? self.stream.removeStreamOutput(self.writer, type: .screen)
+            if self.captureAudio { try? self.stream.removeStreamOutput(self.writer, type: .audio) }
+        }
+    }
+}
+
+private enum RecordingBackground {
+    static func perform<Value: Sendable>(_ operation: @escaping @Sendable () throws -> Value) async throws -> Value {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do { continuation.resume(returning: try operation()) }
+                catch { continuation.resume(throwing: error) }
+            }
+        }
     }
 }

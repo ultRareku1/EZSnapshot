@@ -1,11 +1,14 @@
 import AppKit
 import CoreGraphics
 import Foundation
+import ImageIO
+import UniformTypeIdentifiers
 
 enum CaptureServiceError: LocalizedError, Sendable {
     case permissionDenied
     case failed(String)
     case missingOutput
+    case saveFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -15,6 +18,8 @@ enum CaptureServiceError: LocalizedError, Sendable {
             return detail.isEmpty ? "The screenshot could not be captured." : "The screenshot could not be captured. \(detail)"
         case .missingOutput:
             return "The screenshot finished without creating an image."
+        case .saveFailed(let detail):
+            return "The screenshot was captured, but could not be saved. \(detail)"
         }
     }
 }
@@ -48,18 +53,23 @@ final class CaptureService {
         try Task.checkCancellation()
         guard Self.hasPermission else { throw CaptureServiceError.permissionDenied }
 
-        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        let accessingDestination = destination.startAccessingSecurityScopedResource()
+        defer {
+            if accessingDestination { destination.stopAccessingSecurityScopedResource() }
+        }
         if delay > 0 {
             try await Task.sleep(for: .seconds(delay))
         }
         try Task.checkCancellation()
 
-        // Capture to a private temporary name, then publish the completed image.
-        // This also keeps canceled selections out of the screenshot history.
-        let temporaryURL = destination.appendingPathComponent(".EZSnapshot-\(UUID().uuidString).\(format.fileExtension)")
-        defer { try? FileManager.default.removeItem(at: temporaryURL) }
+        // The system utility writes only into an app-owned temporary workspace.
+        // EZSnapshot exports the finished image itself, so child-process access
+        // to the user's selected folder cannot prevent native capture.
+        let workspace = try Self.makeCaptureWorkspace()
+        let temporaryURL = workspace.appendingPathComponent("Capture").appendingPathExtension(format.fileExtension)
+        defer { try? FileManager.default.removeItem(at: workspace) }
 
-        var arguments = ["-x", "-t", format == .jpeg ? "jpg" : "png"]
+        var arguments = ["-x", "-T", "0", "-t", format == .jpeg ? "jpg" : "png"]
         switch mode {
         case .region:
             arguments += ["-i", "-s"]
@@ -93,27 +103,68 @@ final class CaptureService {
             throw CaptureServiceError.missingOutput
         }
 
-        return try Self.publishImage(at: temporaryURL, in: destination, format: format)
+        do {
+            // Validation and file export can involve large images or a slow
+            // external drive; keep that work away from the main actor.
+            return try await Task.detached(priority: .userInitiated) {
+                try Self.publishImage(at: temporaryURL, in: destination, format: format)
+            }.value
+        } catch let error as CaptureServiceError {
+            throw error
+        } catch {
+            throw CaptureServiceError.saveFailed("\(destination.path): \(error.localizedDescription)")
+        }
     }
 
-    private static func publishImage(at temporaryURL: URL, in directory: URL, format: ScreenshotFormat) throws -> URL {
+    nonisolated static func makeCaptureWorkspace() throws -> URL {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("EZSnapshot-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: directory,
+            withIntermediateDirectories: false,
+            attributes: [.posixPermissions: 0o700]
+        )
+        return directory
+    }
+
+    nonisolated static func publishImage(
+        at temporaryURL: URL,
+        in directory: URL,
+        format: ScreenshotFormat,
+        capturedAt: Date = Date()
+    ) throws -> URL {
+        guard let source = CGImageSourceCreateWithURL(temporaryURL as CFURL, nil),
+              CGImageSourceGetCount(source) > 0,
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil),
+              image.width > 0, image.height > 0 else {
+            throw CaptureServiceError.failed("macOS did not produce a valid screenshot image.")
+        }
+        let expectedType = format == .png ? UTType.png.identifier : UTType.jpeg.identifier
+        guard (CGImageSourceGetType(source) as String?) == expectedType else {
+            throw CaptureServiceError.failed("macOS produced an image in an unexpected format.")
+        }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = "yyyy-MM-dd 'at' HH.mm.ss"
-        let baseName = "EZSnapshot \(formatter.string(from: Date()))"
+        let baseName = "EZSnapshot \(formatter.string(from: capturedAt))"
 
-        // moveItem refuses to overwrite existing files, including a file created
-        // by another app between the existence check and the move.
+        // copyItem handles different volumes and refuses to overwrite an image
+        // created by another app between the existence check and the copy.
+        // The validated source remains intact until the caller cleans up.
         for suffix in 0..<10_000 {
             let name = suffix == 0 ? baseName : "\(baseName) (\(suffix + 1))"
             let resultURL = directory.appendingPathComponent(name).appendingPathExtension(format.fileExtension)
             if FileManager.default.fileExists(atPath: resultURL.path) { continue }
             do {
-                try FileManager.default.moveItem(at: temporaryURL, to: resultURL)
+                try FileManager.default.copyItem(at: temporaryURL, to: resultURL)
                 return resultURL
             } catch {
-                if FileManager.default.fileExists(atPath: resultURL.path) { continue }
+                let fileError = error as NSError
+                if fileError.domain == NSCocoaErrorDomain,
+                   fileError.code == CocoaError.fileWriteFileExists.rawValue { continue }
                 throw error
             }
         }

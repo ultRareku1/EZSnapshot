@@ -39,6 +39,7 @@ final class AppState: ObservableObject {
     @Published var recordingRegion: CGRect?
     @Published var isLoadingRecordingSources = false
     @Published var recordingStartedAt: Date?
+    @Published private(set) var recordingTime = "00:00"
     @Published var recordingAudio: Bool { didSet { defaults.set(recordingAudio, forKey: "recordingAudio") } }
     @Published var recordingCursor: Bool { didSet { defaults.set(recordingCursor, forKey: "recordingCursor") } }
     @Published var recordingFPS: Int { didSet { defaults.set(recordingFPS, forKey: "recordingFPS") } }
@@ -46,6 +47,7 @@ final class AppState: ObservableObject {
     private let recordingService = RecordingService()
     private let regionSelector = RecordingRegionSelector()
     private var recordingTask: Task<Void, Never>?
+    private var recordingClockTask: Task<Void, Never>?
     private var quitAfterRecording = false
     private var pendingRecordingFailure: Error?
     private let defaults: UserDefaults
@@ -352,11 +354,13 @@ final class AppState: ObservableObject {
                                                  captureAudio: audio, fps: fps, destination: folder)
                 recordingStartedAt = Date()
                 recordingPhase = .recording
+                startRecordingClock()
                 if let error = pendingRecordingFailure {
                     pendingRecordingFailure = nil
                     stopRecording(interruption: error)
                 } else if quitAfterRecording { stopRecording() }
             } catch {
+                stopRecordingClock()
                 recordingPhase = .idle
                 recordingStartedAt = nil
                 pendingRecordingFailure = nil
@@ -374,6 +378,7 @@ final class AppState: ObservableObject {
     func stopRecording(interruption: Error? = nil) {
         guard recordingPhase == .recording else { return }
         recordingPhase = .finishing
+        stopRecordingClock()
         recordingTask = Task {
             do {
                 let result = try await recordingService.stop()
@@ -412,6 +417,25 @@ final class AppState: ObservableObject {
     func toggleRecording() {
         if recordingPhase == .recording { stopRecording() }
         else if recordingPhase == .idle { startRecording() }
+    }
+    // A TimelineView inside MenuBarExtra's label can recursively invalidate
+    // the status button image on macOS. Drive its plain Text from one task.
+    private func startRecordingClock() {
+        recordingClockTask?.cancel()
+        recordingTime = ScreenshotRecord.timeString(recordingElapsed)
+        recordingClockTask = Task { [weak self] in
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(1)) }
+                catch { return }
+                guard let self, self.recordingPhase == .recording else { return }
+                let updated = ScreenshotRecord.timeString(self.recordingElapsed)
+                if self.recordingTime != updated { self.recordingTime = updated }
+            }
+        }
+    }
+    private func stopRecordingClock() {
+        recordingClockTask?.cancel()
+        recordingClockTask = nil
     }
     func stopRecordingAndQuit() {
         showRecordingQuitDialog = false
